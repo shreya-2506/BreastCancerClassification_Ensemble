@@ -1,0 +1,117 @@
+---
+title: "Project 2"
+output: word_document
+date: "2023-03-18"
+---
+
+```{r}
+#load the mlbench package which has the BreastCancer data set
+require(mlbench)
+
+# if you don't have any required package, use the install.packages() command
+# load the data set
+data(BreastCancer)
+ls(BreastCancer)
+```
+
+
+```{r}
+# some algorithms don't like missing values, so remove rows with missing values
+BreastCancer <- na.omit(BreastCancer) 
+# remove the unique identifier, which is useless and would confuse the machine learning algorithms
+BreastCancer$Id <- NULL 
+str(BreastCancer)
+```
+
+
+```{r}
+set.seed(123)
+train.index <- sample(row.names(BreastCancer), 0.7*dim(BreastCancer)[1])  
+test.index <- setdiff(row.names(BreastCancer), train.index)  
+head(test.index)
+train.df <- BreastCancer[train.index,]
+test.df <- BreastCancer[test.index,]
+```
+
+
+```{r}
+library(e1071)
+
+mysvm <- svm(Class ~ ., train.df)
+mysvm.pred <- predict(mysvm, test.df)
+table(mysvm.pred,test.df$Class)
+```
+
+
+```{r}
+library(klaR)
+mynb <- NaiveBayes(Class ~ ., train.df)
+mynb.pred <- predict(mynb,test.df)
+head(mynb.pred$class)
+table(mynb.pred$class,test.df$Class)
+str(mysvm.pred)
+str(mynb.pred)
+
+```
+
+
+```{r}
+library(MASS)
+
+#Decision trees
+library(rpart)
+mytree <- rpart(Class ~ ., train.df)
+plot(mytree); text(mytree) 
+summary(mytree)
+mytree.pred <- predict(mytree,test.df,type="class")
+table(mytree.pred,test.df$Class)
+```
+
+
+
+
+```{r}
+#Regularised Discriminant Analysis
+library(klaR)
+myrda <- rda(Class ~ ., train.df)
+myrda.pred <- predict(myrda, test.df)
+table(myrda.pred$class,test.df$Class)
+```
+
+
+```{r}
+#Random Forests
+library(randomForest)
+myrf <- randomForest(Class ~ ., train.df)
+myrf.pred <- predict(myrf, test.df)
+head(myrf.pred)
+table(myrf.pred, test.df$Class)
+```
+
+
+```{r}
+combine.classes<-data.frame(myrf.pred, myrda.pred$class,#myqda.pred, 
+                            mytree.pred,mysvm.pred, mynb.pred$class)
+
+combine.classes$myrf.pred<-ifelse(combine.classes$myrf.pred=="benign", 0, 1)
+combine.classes[,2]<-ifelse(combine.classes[,2]=="benign", 0, 1)
+combine.classes[,3]<-ifelse(combine.classes[,3]=="benign", 0, 1)
+combine.classes[,4]<-ifelse(combine.classes[,4]=="benign", 0, 1)
+combine.classes[,5]<-ifelse(combine.classes[,5]=="benign", 0, 1)
+str(combine.classes)
+```
+
+
+```{r}
+combine.cl<-combine.classes[, -c(6,7)]
+majority.vote=rowSums(combine.classes[, -c(6,7)])
+head(majority.vote)
+```
+
+
+```{r}
+combine.classes[,6]<-rowSums(combine.classes[,-c(6,7)])
+combine.classes[,7]<-ifelse(combine.classes[,6]>=4, "malignant", "benign")
+table(combine.classes[,7], test.df$Class)
+```
+
